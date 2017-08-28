@@ -8,13 +8,16 @@ const Context = require('slapp-context-beepboop')
 // use `PORT` env var on Beep Boop - default to 3000 locally
 var port = process.env.PORT || 3000
 
+var weather = require('./weather');
+var yelpLocations = require('./yelpLocations');
+var traffic = require('./traffic');
+
 var slapp = Slapp({
   // Beep Boop sets the SLACK_VERIFY_TOKEN env var
   verify_token: process.env.SLACK_VERIFY_TOKEN,
   convo_store: ConvoStore(),
   context: Context()
 })
-
 
 var HELP_TEXT = `
 I will respond to the following messages:
@@ -30,8 +33,40 @@ I will respond to the following messages:
 //*********************************************
 
 // response to the user typing "help"
-slapp.message('help', ['mention', 'direct_message'], (msg) => {
-  msg.say(HELP_TEXT)
+slapp.message('weather', ['mention', 'direct_message'], (msg) => {
+  msg.say(weather.get())
+})
+
+slapp.message('yelp', ['mention', 'direct_message'], (msg) => {
+  msg.say(yelpLocations.get())
+})
+
+slapp.message('poll', ['mention', 'direct_message'], (msg) => {
+  msg.say({
+    text: 'How are you?',
+    attachments: [
+      {
+        text: '',
+        callback_id: 'how_are_you',
+        actions: [
+        {
+          name: 'answer',
+          text: ':thumbsup:',
+          type: 'button',
+          value: 'up',
+          style: 'default'
+        },
+        {
+          name: 'answer',
+          text: ':thumbsdown:',
+          type: 'button',
+          value: 'down',
+          style: 'default'
+        }
+        ]
+      }
+    ]
+  })
 })
 
 // "Conversation" flow that tracks state - kicks off when user says hi, hello or hey
