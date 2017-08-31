@@ -37,3 +37,11 @@ jspm_packages
 .node_repl_history
 
 yarn.lock
+.idea/codeStyleSettings.xml
+.idea/lunch_bot.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/watcherTasks.xml
+.idea/workspace.xml
+.idea/inspectionProfiles/Project_Default.xml

@@ -4,16 +4,21 @@ const express = require('express')
 const Slapp = require('slapp')
 const ConvoStore = require('slapp-convo-beepboop')
 const Context = require('slapp-context-beepboop')
+const smb = require('slack-message-builder')
+var exec = require('child_process').exec;
 
 // use `PORT` env var on Beep Boop - default to 3000 locally
 var port = process.env.PORT || 3000
 
-var weather = require('./weather');
-var yelpLocations = require('./yelpLocations');
-var traffic = require('./traffic');
+const Weather = require('./weather')
+const YelpService = require('./yelpService')
+const Traffic = require('./traffic')
+const Poll = require('./poll')
+const util = require('util')
+const sleep = require('sleep');
 
 var slapp = Slapp({
-  // Beep Boop sets the SLACK_VERIFY_TOKEN env var
+    // Beep Boop sets the SLACK_VERIFY_TOKEN env var
   verify_token: process.env.SLACK_VERIFY_TOKEN,
   convo_store: ConvoStore(),
   context: Context()
@@ -22,109 +27,209 @@ var slapp = Slapp({
 var HELP_TEXT = `
 I will respond to the following messages:
 \`help\` - to see this message.
-\`hi\` - to demonstrate a conversation that tracks state.
-\`thanks\` - to demonstrate a simple response.
-\`<type-any-other-text>\` - to demonstrate a random emoticon response, some of the time :wink:.
-\`attachment\` - to see a Slack attachment message.
+\`lunchpoll\` - to start a lunch poll.
+
+I will also monitor your conversations and if I think you're getting hungry I'll start a poll!
 `
 
-//*********************************************
+//* ********************************************
 // Setup different handlers for messages
-//*********************************************
+//* ********************************************
 
-// response to the user typing "help"
-slapp.message('weather', ['mention', 'direct_message'], (msg) => {
-  msg.say(weather.get())
+// Catch-all for any other responses not handled above
+slapp.message('.*(lunch).*', ['ambient'], (msg) => {
+    // respond only 40% of the time
+  if (Math.random() < 0.4) {
+    msg.say('Did somebody say lunch? :wave:')
+    .route('how_are_you')
+  }
 })
 
-slapp.message('yelp', ['mention', 'direct_message'], (msg) => {
-  msg.say(yelpLocations.get())
-})
-
-slapp.message('poll', ['mention', 'direct_message'], (msg) => {
-  msg.say({
-    text: 'How are you?',
-    attachments: [
-      {
-        text: '',
-        callback_id: 'how_are_you',
-        actions: [
-        {
-          name: 'answer',
-          text: ':thumbsup:',
-          type: 'button',
-          value: 'up',
-          style: 'default'
-        },
-        {
-          name: 'answer',
-          text: ':thumbsdown:',
-          type: 'button',
-          value: 'down',
-          style: 'default'
-        }
-        ]
-      }
-    ]
-  })
-})
+// slapp.message('.*(hungry).*', ['ambient'], (msg) => {
+//     // respond only 40% of the time
+//   if (Math.random() < 0.4) {
+//     msg.say('Did somebody say lunch? :wave:')
+//     .route('how_are_you')
+//   }
+// })
 
 // "Conversation" flow that tracks state - kicks off when user says hi, hello or hey
 slapp
-  .message('^(hi|hello|hey)$', ['direct_mention', 'direct_message'], (msg, text) => {
-    msg
-      .say(`${text}, how are you?`)
-      // sends next event from user to this route, passing along state
-      .route('how-are-you', { greeting: text })
-  })
-  .route('how-are-you', (msg, state) => {
-    var text = (msg.body.event && msg.body.event.text) || ''
+    .message('^(hi|hello|hey)$', ['direct_mention', 'direct_message'], (msg, text) => {
+      msg
+            .say(`${text}, how are you?`)
+            // sends next event from user to this route, passing along state
+            .route('how_are_you', {
+              greeting: text
+            })
+    })
+    .route('how_are_you', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
 
-    // user may not have typed text as their next action, ask again and re-route
-    if (!text) {
-      return msg
-        .say("Whoops, I'm still waiting to hear how you're doing.")
-        .say('How are you?')
-        .route('how-are-you', state)
-    }
+        // add their response to state
+      state.status = text
 
-    // add their response to state
-    state.status = text
+      msg.say([
+        'Can I help you with something? :smile:',
+        'Kinda busy, how can I help? :confused: ',
+        'Whats up? Make it quick :clock1:'
+      ])
+            .route('can_i_help', state)
+    })
+    .route('can_i_help', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
 
-    msg
-      .say(`Ok then. What's your favorite color?`)
-      .route('color', state)
-  })
-  .route('color', (msg, state) => {
-    var text = (msg.body.event && msg.body.event.text) || ''
+        // add their response to state
+      state.color = text
 
-    // user may not have typed text as their next action, ask again and re-route
-    if (!text) {
-      return msg
-        .say("I'm eagerly awaiting to hear your favorite color.")
-        .route('color', state)
-    }
+      if (!text.includes('food')) {
+        msg.say('...')
+                .route('how_are_you')
+      } else {
+        var message = smb()
+                .text('Please pick a cuisine :knife_fork_plate: :chicken: :hot_pepper: :cow2:')
+                .attachment()
+                .text('Choose a cuisine!')
+                .fallback('You are unable to choose a game')
+                .callbackId('cuisinechoice_callback')
+                .color('#3AA3E3')
+                .button()
+                .name('choice')
+                .text('Italian :flag-it:')
+                .type('button')
+                .value('Italian')
+                .end()
+                .button()
+                .name('choice')
+                .text('Mexican :flag-me:')
+                .type('button')
+                .value('Mexican')
+                .end()
+                .button()
+                .name('choice')
+                .text('Chinese :flag-cn:')
+                .type('button')
+                .value('Chinese')
+                .end()
+                .button()
+                .name('choice')
+                .text('Local :flag-ie: :flag-gb:')
+                .type('button')
+                .value('Local')
+                .end()
+                .button()
+                .name('choice')
+                .text('Not Interested')
+                .style('danger')
+                .type('button')
+                .value('shitecraic')
+                .confirm()
+                .title('Shite Craic?')
+                .text('So you prefer to eat alone and miss the lunch time bants?')
+                .okText('Yes')
+                .dismissText('No')
+                .end()
+                .end()
+                .end()
+                .json()
 
-    // add their response to state
-    state.color = text
+        msg
+                .say('Oh you want lunch! Please get to the point more quickly next time...')
+                .say(message)
+                .route('option_selected', state)
+      }
+    })
+    .route('option_selected', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
 
-    msg
-      .say('Thanks for sharing.')
-      .say(`Here's what you've told me so far: \`\`\`${JSON.stringify(state)}\`\`\``)
-    // At this point, since we don't route anywhere, the "conversation" is over
-  })
+      var selectedOption = msg.body.actions[0].value
 
-// Can use a regex as well
-slapp.message(/^(thanks|thank you)/i, ['mention', 'direct_message'], (msg) => {
-  // You can provide a list of responses, and a random one will be chosen
-  // You can also include slack emoji in your responses
-  msg.say([
-    "You're welcome :smile:",
-    'You bet',
-    ':+1: Of course',
-    'Anytime :sun_with_face: :full_moon_with_face:'
-  ])
-})
+      console.log('User selected $[selectedOption}')
+
+        // add their response to state
+      state.option = selectedOption
+      var message = ''
+
+      if (selectedOption === 'Mexican') {
+        message = 'Oh wow, how exciting...'
+      } else if (selectedOption === 'Italian') {
+        message = 'Really? Thats a bit lame'
+      } else if (selectedOption === 'Local') {
+        message = 'God youre boring'
+      } else if (selectedOption === 'Chinese') {
+        message = 'Good choice'
+      } else {
+        message = 'Why did you even waste my time?'
+      }
+
+      msg
+        .say(message)
+        .say('It\'s your life.... so how rich are you feeling then?')
+        .route('how_rich_are_you_feeling', state)
+    })
+    .route('how_rich_are_you_feeling', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
+
+        // add their response to state
+      state.status = text
+
+      msg
+        .say('Johnny big balls over here...')
+        .say('Grand, do you care how far you\'re walking?')
+        .route("how_far")
+    })
+    .route('how_far', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
+
+        // add their response to state
+      state.status = text
+
+      msg
+        .say('Good, you need the exercise :face_with_rolling_eyes: ')
+        .say('Ok, let me see what i can find here, one second...')
+        .route("waiting_for_directions")
+    })
+    .route('waiting_for_directions', (msg, state) => {
+      var text = (msg.body.event && msg.body.event.text) || ''
+
+        // add their response to state
+      state.status = text
+
+      msg
+        .say(':rage:')
+        .say('I said one second ffs.........')
+      sleep.sleep(5)
+
+      var command = 'curl -X GET --header "Accept: application/json" --header "user-key: 5710431d2f61ba5cb589a35574cfe2ef" "https://developers.zomato.com/api/v2.1/categories"'
+
+
+      exec(command, function(error, stdout, stderr){
+
+        console.log('stdout: ' + stdout);
+        console.log('stderr: ' + stderr);
+
+        if(error !== null)
+        {
+          console.log('exec error: ' + error);
+        }
+
+         msg
+        .say({
+          text: 'Map :world_map:',
+          attachments: [{
+          text: stdout,
+          title: 'Map to your destination',
+          image_url: 'https://thenextweb.com/wp-content/blogs.dir/1/files/2010/05/maps-500x390.jpg',
+          title_link: 'https://beepboophq.com/',
+          color: '#7CD197'
+        }]
+      })
+      .route("how_far")
+
+      });
+     
+    })
+
 
 // demonstrate returning an attachment...
 slapp.message('attachment', ['mention', 'direct_message'], (msg) => {
@@ -138,14 +243,6 @@ slapp.message('attachment', ['mention', 'direct_message'], (msg) => {
       color: '#7CD197'
     }]
   })
-})
-
-// Catch-all for any other responses not handled above
-slapp.message('.*', ['direct_mention', 'direct_message'], (msg) => {
-  // respond only 40% of the time
-  if (Math.random() < 0.4) {
-    msg.say([':wave:', ':pray:', ':raised_hands:'])
-  }
 })
 
 // attach Slapp to express server
