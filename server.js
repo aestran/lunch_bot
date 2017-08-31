@@ -10,13 +10,13 @@ var exec = require('child_process').exec;
 // use `PORT` env var on Beep Boop - default to 3000 locally
 var port = process.env.PORT || 3000
 
-const Weather = require('./weather')
-const YelpService = require('./yelpService')
-const Traffic = require('./traffic')
-const Poll = require('./poll')
+const Weather = require('./services/weatherService')
+const Yelp = require('./services/yelpService')
+const Traffic = require('./services/trafficService')
+const Nutrition = require('./services/nutritionService');
 const util = require('util')
 const sleep = require('sleep');
-const NutritionService = require('./nutritionService');
+
 
 var slapp = Slapp({
     // Beep Boop sets the SLACK_VERIFY_TOKEN env var
