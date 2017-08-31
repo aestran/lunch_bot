@@ -8,6 +8,10 @@ YelpService.prototype.getCuisineOptions = function () {
 	return cuisineOptions;
 }
 
+YelpService.prototype.getMockCuisineOptions = function () {
+  return cuisineOptions;
+}
+
 YelpService.prototype.getLocations = function () {
 	 var command = 'curl -X GET --header "Accept: application/json" --header "user-key: 5710431d2f61ba5cb589a35574cfe2ef" "https://developers.zomato.com/api/v2.1/categories"'
 
