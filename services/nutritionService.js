@@ -31,6 +31,7 @@ module.exports = {
              var apiResult = JSON.stringify(body);
              var healthData = JSON.parse(apiResult)
              var calorieCount=healthData.exercises[0].nf_calories
+             //Multiply calories by two to get total burned for round trip journey. Round up to nearest full number
              //console.log(Math.round(calorieCount*2))
              return Math.round(calorieCount*2)
          });
