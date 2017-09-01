@@ -11,7 +11,7 @@ var exec = require('child_process').exec;
 var port = process.env.PORT || 3000
 
 const Weather = require('./services/weatherService')
-const LocationFunction = require('./services/yelpService').getMockLocations;
+var LocationFuntion = require('./services/zomatoService.js');
 var WeatherFunction = require('./services/weatherService').getMockWeather;
 const TrafficFunction = require('./services/trafficService').getMockStaticImageUrl;
 const NutritionFunction = require('./services/nutritionService').getMockNutritionInfo;
@@ -58,6 +58,7 @@ slapp.message('.*(lunch).*', ['ambient'], (msg) => {
 // "Conversation" flow that tracks state - kicks off when user says hi, hello or hey
 slapp
   .message('^(hi|hello|hey|Yoyo)$', ['direct_mention', 'direct_message'], (msg, text) => {
+
     msg
       .say(`${text}, how are you?`)
       // sends next event from user to this route, passing along state
@@ -152,13 +153,13 @@ slapp
     var message = ''
 
     if (selectedOption === 'Mexican') {
-      message = '[ADD BANTER FOR Mexican]'
+      message = 'What did a Mexican throw his wife off a cliff?Tequilla :tropical_drink:'
     } else if (selectedOption === 'Italian') {
       message = 'What do you call a fake noodle? An impasta :spaghetti:'
     } else if (selectedOption === 'Local') {
-      message = '[ADD BANTER FOR Local]'
+      message = 'What do you call cheese that isn’t yours? Nacho cheese '
     } else if (selectedOption === 'Chinese') {
-      message = '[ADD BANTER FOR Chinese]'
+      message = 'You wok my world'
     } else {
       message = 'Why did you even waste my time?'
     }
@@ -167,7 +168,7 @@ slapp
       .say(message)
 
     var message = smb()
-      .text('Now remember, [LINDA TO INSERT FUNNY ANOCDOTE ABOUT... WEALTH....]')
+      .text('They say money can’t buy you happiness, but I’ve got a receipt from the off-license telling a whole different story')
       .attachment()
       .text('How rich are you feeling')
       .fallback('You are unable to choose a game')
@@ -217,11 +218,11 @@ slapp
     var message = ''
 
     if (selectedOption === 'loaded') {
-      message = '[ADD BANTER FOR loaded]'
+      message = 'Ohhhh, hey big spender! :moneybag: \n https://media.giphy.com/media/DTywu7YYjWCVW/giphy.gif'
     } else if (selectedOption === 'poor') {
-      message = '[ADD BANTER FOR poor]'
+      message = 'No problem… misery guts \n https://media.giphy.com/media/uRngiZzOKPKkE/giphy.gif'
     } else if (selectedOption === 'none_selected') {
-      message = '[ADD BANTER FOR none selected]'
+      message = 'Sorry I asked :face_with_rolling_eyes'
     } else {
       message = 'Why did you even waste my time?'
     }
@@ -285,11 +286,11 @@ slapp
     if (selectedDistance === 'joke') {
       message = '[Add banter for joke selection]'
     } else if (selectedDistance === 'adventure') {
-      message = '[Add banter for adventure selection]'
+      message = 'Wow… fill in your timesheet before you leave :face_with_rolling_eyes: '
     } else if (selectedDistance === 'stroll') {
-      message = '[Add banter for stroll selection]'
+      message = 'Ok, I get it...'
     } else if (selectedDistance === 'lazy') {
-      message = '[Add banter for lazy selection]'
+      message = 'If you’re so lazy, why don’t you order a Deliveroo?'
     } else {
       message = 'Why did you even waste my time?'
     }
@@ -308,35 +309,81 @@ slapp
     msg
       .say(':rage:')
       .say('I said one second ffs.........')
-    sleep.sleep(5)
 
-    var locationsResults = LocationFunction();
+    // main.js
+    LocationFuntion.requestLocations(function(err, result) {
+      if (err) return console.error(err);
+      console.log("Result: " + result);
 
-    locationsResults.forEach(function(value) {
-      msg
-        .say({
-          text: 'Result',
-          attachments: [{
-            text: 'A result',
-            title: 'Map to your destination',
-            image_url: value,
-            title_link: value,
-            color: '#7CD197',
-            callback_id: "location_selected",
-            actions: [{
-              "name": "game",
-              "text": "Chess",
-              "type": "button",
-              "value": "chess"
+      result.forEach(function(value) {
+        console.log(value);
+        msg
+          .say({
+            text: 'Result',
+            attachments: [{
+              text: value.name,
+              title: value.address,
+              image_url: value.image,
+              color: '#7CD197',
+              callback_id: "location_selected_callback",
+              actions: [{
+                "name": "final_choice",
+                "text": "Choose Me!",
+                "type": "button",
+                "value": value.name
+              }]
             }]
-          }]
-        })
-        .route("how_far")
+          })
+          .route("location_selected")
+      });
+
     });
-
-    //.route("how_far")
   })
+  .route('location_selected', (msg, state) => {
+     var selectedOption = msg.body.actions[0].value
 
+    // add their response to state
+    state.status = selectedOption
+
+    msg.say('I\'ve heard '+selectedOption+' is shite, you\'ll enjoy it')
+       .say('Anything else I can help with?')
+      .route('want_weather', state)
+
+  })
+   .route('want_weather', (msg, state) => {
+
+     var text = (msg.body.event && msg.body.event.text) || ''
+
+    // add their response to state
+    state.color = text
+
+    if (!text.includes('weather')) {
+      msg.say('...')
+        .route('dont_want_weather')
+    } else {
+      msg.say('Ok, just so happens I\'ve got a weather module here...')
+         .say('LINK TO WEATHER')
+        .route('can_i_help', state)
+    }
+
+  })
+  .route('dont_want_weather', (msg, state) => {
+
+     var text = (msg.body.event && msg.body.event.text) || ''
+
+    // add their response to state
+    state.color = text
+
+    if (!text.includes('weather')) {
+      msg.say('...')
+        .say('You\'re starting to piss me off...' )
+        .route('want_weather')
+    } else {
+      msg.say('FFS you said you didn\'t want anything else?! Goodbye :wave:')
+        //.route('can_i_help', state)
+    }
+
+  })
 
 // demonstrate returning an attachment...
 slapp.message('attachment', ['mention', 'direct_message'], (msg) => {

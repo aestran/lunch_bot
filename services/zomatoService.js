@@ -8,7 +8,7 @@ let client = zomato.createClient({
 });
 
 //3rd
-function restaurants(locations, cuisines) {
+function restaurants(locations, cuisines, callback) {
 
     let cuisineIds = new Array();
     selectedCuisines.forEach(function(cuisine) {
@@ -35,8 +35,8 @@ function restaurants(locations, cuisines) {
                 console.log("Restaurant data " + JSON.stringify(restaurantData));
                 var restaurant = new Restaurant(restaurantData.restaurant);
                 sortedRestaurents.push(restaurant);
+                console.log('Restaurant added')
             })
-            console.log("Results: " + JSON.stringify(sortedRestaurents));
 
             sortedRestaurents.forEach(function(restaurant) {
                 if (restaurant.id == "16675470") {
@@ -47,8 +47,7 @@ function restaurants(locations, cuisines) {
 
                 }
             })
-
-            return sortedRestaurents;
+            callback(err, sortedRestaurents)
         } else {
             console.log(err);
         }
@@ -56,7 +55,7 @@ function restaurants(locations, cuisines) {
 }
 
 //2nd
-function getCuisines(locations) {
+function getCuisines(locations, callback) {
     client.getCuisines({
         city_id: locations[0].id,
 
@@ -64,7 +63,7 @@ function getCuisines(locations) {
         if (!err) {
             let cuisineResult = JSON.parse(result);
             let cuisines = cuisineResult.cuisines;
-            restaurants(locations, cuisines);
+            restaurants(locations, cuisines, callback);
         } else {
             console.log(err);
         }
@@ -94,7 +93,7 @@ function addQuotes(string) {
 }
 
 module.exports = {
-    requestLocations: function() {
+    requestLocations: function(callback) {
         client.getCities({
                 q: "Belfast",
                 count: "1"
@@ -103,12 +102,34 @@ module.exports = {
                 if (!err) {
                     let cityResponse = JSON.parse(result);
                     let locations = cityResponse.location_suggestions;
-                    let cuisines = getCuisines(locations);
+                    let cuisines = getCuisines(locations, callback);
+                    console.log('Function returned ${cuisines}')
                 } else {
                     console.log(err);
                 }
             })
-    },
+    }
 }
+
+var Buz = function () {};
+
+Buz.prototype.requestLocations = function(callback) {
+        client.getCities({
+                q: "Belfast",
+                count: "1"
+            },
+            function(err, result) {
+                if (!err) {
+                    let cityResponse = JSON.parse(result);
+                    let locations = cityResponse.location_suggestions;
+                    let cuisines = getCuisines(locations, callback);
+                    console.log('Function returned ${cuisines}')                   
+                } else {
+                    console.log(err);
+                }
+            })
+    }
+
+    module.exports = new Buz();
 
 require('make-runnable');
