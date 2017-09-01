@@ -1,16 +1,9 @@
-var exec = require('child_process').exec;
+module.exports = {
+    getNutritionInfo: function(){
+         return "This is where I should go fetch nutrition info"
+    }, getMockNutritionInfo: function(object){
+        return 'https://thenextweb.com/wp-content/blogs.dir/1/files/2010/05/maps-500x390.jpg';
+    }
+};
 
-var NutritionService = function () {};
-
-NutritionService.prototype.getNutritionInfo = function (age, gender, weight, search_query) {
-	//search_query = 'walk 10 miles'
-	return 'https://thenextweb.com/wp-content/blogs.dir/1/files/2010/05/maps-500x390.jpg';
-}
-
-NutritionService.prototype.getMockNutritionInfo = function (age, gender, weight, search_query) {
-	//search_query = 'walk 10 miles'
-	return 'https://thenextweb.com/wp-content/blogs.dir/1/files/2010/05/maps-500x390.jpg';
-}
-
-
-module.exports = NutritionService;
+require('make-runnable');

@@ -11,15 +11,16 @@ var exec = require('child_process').exec;
 var port = process.env.PORT || 3000
 
 const Weather = require('./services/weatherService')
-const Yelp = require('./services/yelpService')
-const Traffic = require('./services/trafficService')
-const Nutrition = require('./services/nutritionService');
+const LocationFunction = require('./services/yelpService').getMockLocations;
+var WeatherFunction = require('./services/weatherService').getMockWeather;
+const TrafficFunction = require('./services/trafficService').getMockStaticImageUrl;
+const NutritionFunction = require('./services/nutritionService').getMockNutritionInfo;
 const util = require('util')
 const sleep = require('sleep');
 
 
 var slapp = Slapp({
-    // Beep Boop sets the SLACK_VERIFY_TOKEN env var
+  // Beep Boop sets the SLACK_VERIFY_TOKEN env var
   verify_token: process.env.SLACK_VERIFY_TOKEN,
   convo_store: ConvoStore(),
   context: Context()
@@ -39,10 +40,10 @@ I will also monitor your conversations and if I think you're getting hungry I'll
 
 // Catch-all for any other responses not handled above
 slapp.message('.*(lunch).*', ['ambient'], (msg) => {
-    // respond only 40% of the time
+  // respond only 40% of the time
   if (Math.random() < 0.4) {
     msg.say('Did somebody say lunch? :wave:')
-    .route('how_are_you')
+      .route('how_are_you')
   }
 })
 
@@ -56,167 +57,285 @@ slapp.message('.*(lunch).*', ['ambient'], (msg) => {
 
 // "Conversation" flow that tracks state - kicks off when user says hi, hello or hey
 slapp
-    .message('^(hi|hello|hey)$', ['direct_mention', 'direct_message'], (msg, text) => {
-      msg
-            .say(`${text}, how are you?`)
-            // sends next event from user to this route, passing along state
-            .route('how_are_you', {
-              greeting: text
-            })
-    })
-    .route('how_are_you', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
+  .message('^(hi|hello|hey|Yoyo)$', ['direct_mention', 'direct_message'], (msg, text) => {
+    msg
+      .say(`${text}, how are you?`)
+      // sends next event from user to this route, passing along state
+      .route('how_are_you', {
+        greeting: text
+      })
+  })
+  .route('how_are_you', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
 
-        // add their response to state
-      state.status = text
+    // add their response to state
+    state.status = text
 
-      msg.say([
+    msg.say([
         'Can I help you with something? :smile:',
         'Kinda busy, how can I help? :confused: ',
-        'Whats up? Make it quick :clock1:'
+        'Whats up? Make it quick :clock1:',
+        'Ummm... you messaged me your clown :unicorn_face:'
       ])
-            .route('can_i_help', state)
-    })
-    .route('can_i_help', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
+      .route('can_i_help', state)
+  })
+  .route('can_i_help', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
 
-        // add their response to state
-      state.color = text
+    // add their response to state
+    state.color = text
 
-      if (!text.includes('food')) {
-        msg.say('...')
-                .route('how_are_you')
-      } else {
-        var message = smb()
-                .text('Please pick a cuisine :knife_fork_plate: :chicken: :hot_pepper: :cow2:')
-                .attachment()
-                .text('Choose a cuisine!')
-                .fallback('You are unable to choose a game')
-                .callbackId('cuisinechoice_callback')
-                .color('#3AA3E3')
-                .button()
-                .name('choice')
-                .text('Italian :flag-it:')
-                .type('button')
-                .value('Italian')
-                .end()
-                .button()
-                .name('choice')
-                .text('Mexican :flag-me:')
-                .type('button')
-                .value('Mexican')
-                .end()
-                .button()
-                .name('choice')
-                .text('Chinese :flag-cn:')
-                .type('button')
-                .value('Chinese')
-                .end()
-                .button()
-                .name('choice')
-                .text('Local :flag-ie: :flag-gb:')
-                .type('button')
-                .value('Local')
-                .end()
-                .button()
-                .name('choice')
-                .text('Not Interested')
-                .style('danger')
-                .type('button')
-                .value('shitecraic')
-                .confirm()
-                .title('Shite Craic?')
-                .text('So you prefer to eat alone and miss the lunch time bants?')
-                .okText('Yes')
-                .dismissText('No')
-                .end()
-                .end()
-                .end()
-                .json()
-
-        msg
-                .say('Oh you want lunch! Please get to the point more quickly next time...')
-                .say(message)
-                .route('option_selected', state)
-      }
-    })
-    .route('option_selected', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
-
-      var selectedOption = msg.body.actions[0].value
-
-      console.log('User selected $[selectedOption}')
-
-        // add their response to state
-      state.option = selectedOption
-      var message = ''
-
-      if (selectedOption === 'Mexican') {
-        message = 'Oh wow, how exciting...'
-      } else if (selectedOption === 'Italian') {
-        message = 'Really? Thats a bit lame'
-      } else if (selectedOption === 'Local') {
-        message = 'God youre boring'
-      } else if (selectedOption === 'Chinese') {
-        message = 'Good choice'
-      } else {
-        message = 'Why did you even waste my time?'
-      }
+    if (!text.includes('food')) {
+      msg.say('...')
+        .route('how_are_you')
+    } else {
+      var message = smb()
+        .text('Please pick a cuisine :knife_fork_plate::chicken::apple::cow2:')
+        .attachment()
+        .text('Choose a cuisine!')
+        .fallback('You are unable to choose a game')
+        .callbackId('cuisinechoice_callback')
+        .color('#3AA3E3')
+        .button()
+        .name('choice')
+        .text('Italian :flag-it:')
+        .type('button')
+        .value('Italian')
+        .end()
+        .button()
+        .name('choice')
+        .text('Mexican :flag-me:')
+        .type('button')
+        .value('Mexican')
+        .end()
+        .button()
+        .name('choice')
+        .text('Chinese :flag-cn:')
+        .type('button')
+        .value('Chinese')
+        .end()
+        .button()
+        .name('choice')
+        .text('Local :flag-ie: :flag-gb:')
+        .type('button')
+        .value('Local')
+        .end()
+        .button()
+        .name('choice')
+        .text('Microwave Meal')
+        .style('danger')
+        .type('button')
+        .value('shitecraic')
+        .confirm()
+        .title('Shite Craic')
+        .text('You know Belfast doesn’t have a microwave? #ridic')
+        .okText('Not Cool')
+        .dismissText('Justice for Belfast')
+        .end()
+        .end()
+        .end()
+        .json()
 
       msg
+        .say('Oh you want lunch! Please get to the point more quickly next time...')
         .say(message)
-        .say('It\'s your life.... so how rich are you feeling then?')
-        .route('how_rich_are_you_feeling', state)
-    })
-    .route('how_rich_are_you_feeling', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
+        .route('option_selected', state)
+    }
+  })
+  .route('option_selected', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
 
-        // add their response to state
-      state.status = text
+    var selectedOption = msg.body.actions[0].value
 
-      msg
-        .say('Johnny big balls over here...')
-        .say('Grand, do you care how far you\'re walking?')
-        .route("how_far")
-    })
-    .route('how_far', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
+    // add their response to state
+    state.option = selectedOption
+    var message = ''
 
-        // add their response to state
-      state.status = text
+    if (selectedOption === 'Mexican') {
+      message = '[ADD BANTER FOR Mexican]'
+    } else if (selectedOption === 'Italian') {
+      message = 'What do you call a fake noodle? An impasta :spaghetti:'
+    } else if (selectedOption === 'Local') {
+      message = '[ADD BANTER FOR Local]'
+    } else if (selectedOption === 'Chinese') {
+      message = '[ADD BANTER FOR Chinese]'
+    } else {
+      message = 'Why did you even waste my time?'
+    }
 
-      msg
-        .say('Good, you need the exercise :face_with_rolling_eyes: ')
-        .say('Ok, let me see what i can find here, one second...')
-        .route("waiting_for_directions")
-    })
-    .route('waiting_for_directions', (msg, state) => {
-      var text = (msg.body.event && msg.body.event.text) || ''
+    msg
+      .say(message)
 
-        // add their response to state
-      state.status = text
+    var message = smb()
+      .text('Now remember, [LINDA TO INSERT FUNNY ANOCDOTE ABOUT... WEALTH....]')
+      .attachment()
+      .text('How rich are you feeling')
+      .fallback('You are unable to choose a game')
+      .callbackId('riches_choice_callback')
+      .color('#3AA3E3')
+      .button()
+      .name('riches_choice')
+      .text('Loaded :money_mouth_face: ')
+      .type('button')
+      .value('loaded')
+      .end()
+      .button()
+      .name('riches_choice')
+      .text('Poor :money_with_wings:')
+      .type('button')
+      .value('poor')
+      .end()
+      .button()
+      .name('riches_choice')
+      .text('None of your business')
+      .style('danger')
+      .type('button')
+      .value('none_selected')
+      .confirm()
+      .title('Dance monkey?')
+      .text('What do you think I am?')
+      .okText('Yes')
+      .dismissText('No')
+      .end()
+      .end()
+      .end()
+      .json()
 
-      msg
-        .say(':rage:')
-        .say('I said one second ffs.........')
-      sleep.sleep(5)
+    msg
+      .say(message)
+      .route('how_rich_are_you_feeling_answer', state)
 
-      //var result = YelpService.getLocations();
 
+  })
+  .route('how_rich_are_you_feeling_answer', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
+
+    var selectedOption = msg.body.actions[0].value
+
+    // add their response to state
+    state.option = selectedOption
+    var message = ''
+
+    if (selectedOption === 'loaded') {
+      message = '[ADD BANTER FOR loaded]'
+    } else if (selectedOption === 'poor') {
+      message = '[ADD BANTER FOR poor]'
+    } else if (selectedOption === 'none_selected') {
+      message = '[ADD BANTER FOR none selected]'
+    } else {
+      message = 'Why did you even waste my time?'
+    }
+
+    var question = smb()
+      .text('Now remember, [LINDA TO INSERT FUNNY ANOCDOTE ABOUT HEALTH HERE]')
+      .attachment()
+      .text('How far do you want to walk?')
+      .fallback('You are unable to choose a game')
+      .callbackId('distance_choice_callback')
+      .color('#3AA3E3')
+      .button()
+      .name('distance_choice')
+      .text('Mega Lazy :hankey:')
+      .type('button')
+      .value('lazy')
+      .end()
+      .button()
+      .name('distance_choice')
+      .text('Short stroll :sleuth_or_spy:')
+      .type('button')
+      .value('stroll')
+      .end()
+      .button()
+      .name('distance_choice')
+      .text('Adventure mode :runner:')
+      .type('button')
+      .value('adventure')
+      .end()
+      .button()
+      .name('distance_choice')
+      .text('Joke Me :black_joker:')
+      .style('danger')
+      .type('button')
+      .value('joke')
+      .confirm()
+      .title('Dance monkey?')
+      .text('What do you think I am?')
+      .okText('Yes')
+      .dismissText('No')
+      .end()
+      .end()
+      .end()
+      .json()
+
+    msg
+      .say(message)
+      .say(question)
+      .route('how_far', state)
+
+  })
+  .route('how_far', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
+
+    var selectedDistance = msg.body.actions[0].value
+
+    // add their response to state
+    state.selectedDistance = selectedDistance
+    var message = ''
+
+    if (selectedDistance === 'joke') {
+      message = '[Add banter for joke selection]'
+    } else if (selectedDistance === 'adventure') {
+      message = '[Add banter for adventure selection]'
+    } else if (selectedDistance === 'stroll') {
+      message = '[Add banter for stroll selection]'
+    } else if (selectedDistance === 'lazy') {
+      message = '[Add banter for lazy selection]'
+    } else {
+      message = 'Why did you even waste my time?'
+    }
+
+    msg
+      .say(message)
+      .say('Ok, let me see what i can find here, one second...')
+      .route("waiting_for_directions")
+  })
+  .route('waiting_for_directions', (msg, state) => {
+    var text = (msg.body.event && msg.body.event.text) || ''
+
+    // add their response to state
+    state.status = text
+
+    msg
+      .say(':rage:')
+      .say('I said one second ffs.........')
+    sleep.sleep(5)
+
+    var locationsResults = LocationFunction();
+
+    locationsResults.forEach(function(value) {
       msg
         .say({
-          text: 'Map :world_map:',
+          text: 'Result',
           attachments: [{
-          text: "result",
-          title: 'Map to your destination',
-          image_url: 'https://thenextweb.com/wp-content/blogs.dir/1/files/2010/05/maps-500x390.jpg',
-          title_link: 'https://beepboophq.com/',
-          color: '#7CD197'
-        }]
-      })
-      .route("how_far")
+            text: 'A result',
+            title: 'Map to your destination',
+            image_url: value,
+            title_link: value,
+            color: '#7CD197',
+            callback_id: "location_selected",
+            actions: [{
+              "name": "game",
+              "text": "Chess",
+              "type": "button",
+              "value": "chess"
+            }]
+          }]
+        })
+        .route("how_far")
+    });
 
-    })
+    //.route("how_far")
+  })
 
 
 // demonstrate returning an attachment...
