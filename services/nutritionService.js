@@ -1,8 +1,9 @@
 module.exports = {
-    getNutritionInfo: function(distance, user_gender, user_weight, user_height, user_age){
+    //getNutritionInfo: function(distance, user_gender, user_weight, user_height, user_age){
+    getNutritionInfo: function(){
 
         //temp for testing
-        distance=5
+        distance=.7
         user_gender='male'
         user_weight=92.5
         user_height=167.50
