@@ -11,7 +11,7 @@ var exec = require('child_process').exec;
 var port = process.env.PORT || 3000
 
 const Weather = require('./services/weatherService')
-const LocationFunction = require('./services/yelpService').getMockLocations;
+var LocationFuntion = require('./services/zomatoService.js');
 var WeatherFunction = require('./services/weatherService').getMockWeather;
 const TrafficFunction = require('./services/trafficService').getMockStaticImageUrl;
 const NutritionFunction = require('./services/nutritionService').getMockNutritionInfo;
@@ -58,6 +58,7 @@ slapp.message('.*(lunch).*', ['ambient'], (msg) => {
 // "Conversation" flow that tracks state - kicks off when user says hi, hello or hey
 slapp
   .message('^(hi|hello|hey|Yoyo)$', ['direct_mention', 'direct_message'], (msg, text) => {
+
     msg
       .say(`${text}, how are you?`)
       // sends next event from user to this route, passing along state
@@ -308,35 +309,36 @@ slapp
     msg
       .say(':rage:')
       .say('I said one second ffs.........')
-    sleep.sleep(5)
 
-    var locationsResults = LocationFunction();
+    // main.js
+    LocationFuntion.requestLocations(function(err, result) {
+      if (err) return console.error(err);
+      console.log("Result: " + result);
 
-    locationsResults.forEach(function(value) {
-      msg
-        .say({
-          text: 'Result',
-          attachments: [{
-            text: 'A result',
-            title: 'Map to your destination',
-            image_url: value,
-            title_link: value,
-            color: '#7CD197',
-            callback_id: "location_selected",
-            actions: [{
-              "name": "game",
-              "text": "Chess",
-              "type": "button",
-              "value": "chess"
+      result.forEach(function(value) {
+        console.log(value);
+        msg
+          .say({
+            text: 'Result',
+            attachments: [{
+              text: value.name,
+              title: value.address,
+              image_url: value.image,
+              color: '#7CD197',
+              callback_id: "location_selected",
+              actions: [{
+                "name": "final_choice",
+                "text": "Choose Me!",
+                "type": "button",
+                "value": value.name
+              }]
             }]
-          }]
-        })
-        .route("how_far")
+          })
+          .route("how_far")
+      });
+
     });
-
-    //.route("how_far")
   })
-
 
 // demonstrate returning an attachment...
 slapp.message('attachment', ['mention', 'direct_message'], (msg) => {
