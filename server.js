@@ -12,7 +12,7 @@ var port = process.env.PORT || 3000
 
 const Weather = require('./services/weatherService')
 var LocationFuntion = require('./services/zomatoService.js');
-var WeatherFunction = require('./services/weatherService').getMockWeather;
+var WeatherFunction = require('./services/weatherService');
 const TrafficFunction = require('./services/trafficService').getMockStaticImageUrl;
 const NutritionFunction = require('./services/nutritionService').getMockNutritionInfo;
 const util = require('util')
@@ -340,19 +340,19 @@ slapp
     });
   })
   .route('location_selected', (msg, state) => {
-     var selectedOption = msg.body.actions[0].value
+    var selectedOption = msg.body.actions[0].value
 
     // add their response to state
     state.status = selectedOption
 
-    msg.say('I\'ve heard '+selectedOption+' is shite, you\'ll enjoy it')
-       .say('Anything else I can help with?')
+    msg.say('I\'ve heard ' + selectedOption + ' is shite, you\'ll enjoy it')
+      .say('Anything else I can help with?')
       .route('want_weather', state)
 
   })
-   .route('want_weather', (msg, state) => {
+  .route('want_weather', (msg, state) => {
 
-     var text = (msg.body.event && msg.body.event.text) || ''
+    var text = (msg.body.event && msg.body.event.text) || ''
 
     // add their response to state
     state.color = text
@@ -361,26 +361,38 @@ slapp
       msg.say('...')
         .route('dont_want_weather')
     } else {
-      msg.say('Ok, just so happens I\'ve got a weather module here...')
-         .say('LINK TO WEATHER')
-        .route('can_i_help', state)
+
+      // main.js
+      WeatherFunction.getWeather(function(err, result) {
+        if (err) return console.error(err);
+        console.log("Result: " + result);
+
+          WeatherFunction.getWeather(function(err, result) {
+        if (err) return console.error(err);
+        console.log("Result: " + result);
+
+        msg.say('Ok, just so happens I\'ve got a weather module here...')
+          .say(result)
+          .route('can_i_help', state)
+      });
+      });
     }
 
   })
   .route('dont_want_weather', (msg, state) => {
 
-     var text = (msg.body.event && msg.body.event.text) || ''
+    var text = (msg.body.event && msg.body.event.text) || ''
 
     // add their response to state
     state.color = text
 
     if (!text.includes('weather')) {
       msg.say('...')
-        .say('You\'re starting to piss me off...' )
+        .say('You\'re starting to piss me off...')
         .route('want_weather')
     } else {
       msg.say('FFS you said you didn\'t want anything else?! Goodbye :wave:')
-        //.route('can_i_help', state)
+      //.route('can_i_help', state)
     }
 
   })
